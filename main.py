@@ -51,7 +51,7 @@ if __name__ == '__main__':
     ## 2) Load LLM
     model = LLM(args=args)
     
-    ## 3) Load relation ranker & entity ranker 
+    ## 3) Load relation retriever & triple retriever (triple scorer, entity scorer) 
     GNN_device = args.gnn_device
     pruner = RelationRetriever(ckpt_path = args.rel_ranker_path, device = args.device, tail_graph = tail_graph, rel_graph = relation_graph, topk = args.topk)
     predictor = LMPredictor(GNN_device)
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     gnn_model.load_state_dict(state["model"])
     gnn_model.to(GNN_device)
    
-
+    ## 4) initial setting
     hard_selection = False
     is_topp = True
     do_entity_len_threshold = True
@@ -85,9 +85,9 @@ if __name__ == '__main__':
     k_au = 4
     out_file = f'{args.dataset}.jsonl'
     total_hit, total_f1 = [], [] 
-    
+
+    ## 5) start inference
     for inds in tqdm(range(len(dataset))): 
-    # for inds in tqdm(ind_list):
         total_original_q = dataset[inds]['question']
         topic_box = dataset[inds]['q_entity']
         path_map = defaultdict(list)
@@ -126,6 +126,7 @@ if __name__ == '__main__':
                 break
             original_q = original_q_box[0]
 
+            #start sub-question answering
             while True:
                 rel_ent_dict, temp_rel_ent_dict, before_rel_ent_dict, not_choosen_answer= dict(), dict(), dict(), set()
                 cnt += 1
@@ -152,7 +153,8 @@ if __name__ == '__main__':
                 topic_ents = [topic_ent] if type(topic_ent) != list else topic_ent
                 if type(topic_ent) != list:
                     topic_ent = [topic_ent]
-                     
+
+                # Relation Retrieval
                 cand_rel, cand_path = pruner.pruning(topic_ent, total_original_q, writer.ent_box)
 
                 if args.dataset == 'webqsp':
@@ -165,6 +167,7 @@ if __name__ == '__main__':
                     out_forms = ['object']
                 out_form = out_forms[0]
 
+                # Relation Pruning
                 if len(cand_rel) > 3:
                     input_text = rel_prompt_mathcing(args, topic_ent, sub_Q, writer, cand_rel, out_form)
                     retrieved_rel = model.llm_call(input_text, 500, task='relation', printing=True)
@@ -177,6 +180,7 @@ if __name__ == '__main__':
                 all_subqs.append(sub_Q)
                     
                 for iter in range(args.local_iter):
+                    # Triple Retrieval
                     gnn_temp_rel_ent_dict, mpnet_temp_rel_ent_dict = dict(), dict()
                     gnn_id_temp_rel_ent_dict, mpnet_id_temp_rel_ent_dict= dict(), dict()
                     gnn_not_id_temp_rel_ent_dict, mpnet_not_id_temp_rel_ent_dict= dict(), dict()
@@ -254,7 +258,7 @@ if __name__ == '__main__':
                                         total_score_dict[key] = value  + entity2prob[key]    
                                     else:
                                         total_score_dict[key] = value 
-                               
+                                #Repacking
                                 sorted_dict = dict(sorted(total_score_dict.items(), key=lambda x: x[1], reverse=True))
                                 sorted_cand_ent = list(sorted_dict.keys())
                                 cand_ent_score = F.softmax(torch.tensor(list(sorted_dict.values())), dim=0).detach().cpu().tolist()
