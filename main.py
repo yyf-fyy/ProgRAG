@@ -3,10 +3,10 @@ from prompt_matcher import *
 from utils import *
 from tqdm import tqdm
 import gc
-from GFM.gfm_utils import *
-from GFM.gfm_text_encoder import *
-from GFM.gfm_test import test
-from GFM.nbfmodels import *
+from GNN.gnn_utils import *
+from GNN.gnn_text_encoder import *
+from GNN.gnn_test import test
+from GNN.nbfmodels import *
 import pickle
 import ast
 from MPNet.predictor import LMPredictor
@@ -29,7 +29,7 @@ if __name__ == '__main__':
   
     parser.add_argument("--webqsp_subgraph_path", type=str, default='./data/webqsp_topic_graph.pickle')
     parser.add_argument("--cwq_subgraph_path", type=str, default='./data/cwq_topic_graph_updated.pickle')
-    parser.add_argument("--gfm_path", type = str, default = './ckpt/GFM')
+    parser.add_argument("--gnn_path", type = str, default = './ckpt/GNN')
     parser.add_argument("--lm_path", type=str, default = './ckpt/mpnet')
     parser.add_argument("--rel_ranker_path", type=str, default = './Rel_Retriever')
 
@@ -61,18 +61,18 @@ if __name__ == '__main__':
     if args.dataset == 'webqsp':
         with open(args.webqsp_subgraph_path, 'rb') as f:
             topic_graphs= pickle.load(f)
-        gfm_model = GNNRetriever(entity_model=QueryNBFNet(input_dim=512, hidden_dims=[512, 512, 512]), rel_emb_dim=1024)
+        gnn_model = GNNRetriever(entity_model=QueryNBFNet(input_dim=512, hidden_dims=[512, 512, 512]), rel_emb_dim=1024)
         predictor.load_model(ckt_path= os.path.join(args.lm_path, f'{args.lm_path}/webqsp.mdl'))
     else:
         with open(args.cwq_subgraph_path, 'rb') as f:
             topic_graphs= pickle.load(f)
-        gfm_model = GNNRetriever(entity_model=QueryNBFNet(input_dim=512, hidden_dims=[512, 512, 512, 512, 512, 512]), rel_emb_dim=1024)
+        gnn_model = GNNRetriever(entity_model=QueryNBFNet(input_dim=512, hidden_dims=[512, 512, 512, 512, 512, 512]), rel_emb_dim=1024)
         predictor.load_model(ckt_path= os.path.join(args.lm_path, f'{args.lm_path}/cwq.mdl'))
 
     
-    state = torch.load(os.path.join(args.lm_path, f'{args.lm_path}/GFM.pth'), map_location="cpu")
-    gfm_model.load_state_dict(state["model"])
-    gfm_model.to(GNN_device)
+    state = torch.load(os.path.join(args.lm_path, f'{args.lm_path}/GNN.pth'), map_location="cpu")
+    gnn_model.load_state_dict(state["model"])
+    gnn_model.to(GNN_device)
    
 
     hard_selection = False
@@ -114,7 +114,7 @@ if __name__ == '__main__':
                 graph = []
             else:
                 item = topic_graphs[topic_ent]
-                kg_data = make_gfm_first_input(item, id2triple)
+                kg_data = make_gnn_first_input(item, id2triple)
                 kg_data = kg_data.to(GNN_device)
                 kg_data['rel_emb'] = get_emb(kg_data, args.dataset).to(GNN_device)
                 graph = [id2triple[t] for t in item]
@@ -177,46 +177,45 @@ if __name__ == '__main__':
                 all_subqs.append(sub_Q)
                     
                 for iter in range(args.local_iter):
-                    gfm_temp_rel_ent_dict, mpnet_temp_rel_ent_dict = dict(), dict()
-                    gfm_id_temp_rel_ent_dict, mpnet_id_temp_rel_ent_dict= dict(), dict()
-                    gfm_not_id_temp_rel_ent_dict, mpnet_not_id_temp_rel_ent_dict= dict(), dict()
+                    gnn_temp_rel_ent_dict, mpnet_temp_rel_ent_dict = dict(), dict()
+                    gnn_id_temp_rel_ent_dict, mpnet_id_temp_rel_ent_dict= dict(), dict()
+                    gnn_not_id_temp_rel_ent_dict, mpnet_not_id_temp_rel_ent_dict= dict(), dict()
                     mp_entity_to_triple = dict()
                     entity2prob = dict()
                     if retrieved_rel != ["None"]:
-                        get_each_rel_end(cand_path, retrieved_rel, mpnet_temp_rel_ent_dict, gfm_temp_rel_ent_dict, graph, writer, mpnet=True, gfm=True)
+                        get_each_rel_end(cand_path, retrieved_rel, mpnet_temp_rel_ent_dict, gnn_temp_rel_ent_dict, graph, writer, mpnet=True, gnn=True)
                         total_triples = find_suited_trip(cand_path, list(mpnet_temp_rel_ent_dict.keys()))
                         graph_box.add_triples(total_triples)
                         
-                        if len(gfm_temp_rel_ent_dict) != 0:
+                        if len(gnn_temp_rel_ent_dict) != 0:
                             check_cnt = 0
-                            for rel, cand_ent in gfm_temp_rel_ent_dict.items():
+                            for rel, cand_ent in gnn_temp_rel_ent_dict.items():
                                 count = sum(1 for item in cand_ent if len(item) > 1 and item[1] == '.')
                                 if count == len(cand_ent):
                                     check_cnt += 1
-                                    gfm_id_temp_rel_ent_dict[rel] = gfm_temp_rel_ent_dict[rel]
+                                    gnn_id_temp_rel_ent_dict[rel] = gnn_temp_rel_ent_dict[rel]
                                 else:
-                                    gfm_not_id_temp_rel_ent_dict[rel] = gfm_temp_rel_ent_dict[rel]
+                                    gnn_not_id_temp_rel_ent_dict[rel] = gnn_temp_rel_ent_dict[rel]
                             # id
                             if check_cnt != 0:
-                                id_topic_ent = list(set(value for sublist in gfm_id_temp_rel_ent_dict.values() for value in sublist))
+                                id_topic_ent = list(set(value for sublist in gnn_id_temp_rel_ent_dict.values() for value in sublist))
                                 id_topic_ents = [id_topic_ent] if type(id_topic_ent) != list else id_topic_ent
                                 temp_id_cand_rel, cand_path = pruner.pruning(id_topic_ents, total_original_q, writer.ent_box)
-                                gfm_new_temp_rel_ent_dict = dict()
+                                gnn_new_temp_rel_ent_dict = dict()
                                 retrieved_rel = temp_id_cand_rel
-                                get_each_rel_end(cand_path, retrieved_rel,  None, gfm_new_temp_rel_ent_dict, graph, writer, mpnet=False, gfm=True)
+                                get_each_rel_end(cand_path, retrieved_rel,  None, gnn_new_temp_rel_ent_dict, graph, writer, mpnet=False, gnn=True)
                                 
-                                target_entity_list = list(set().union(*gfm_new_temp_rel_ent_dict.values()) | set().union(*gfm_not_id_temp_rel_ent_dict.values()))
+                                target_entity_list = list(set().union(*gnn_new_temp_rel_ent_dict.values()) | set().union(*gnn_not_id_temp_rel_ent_dict.values()))
                             else:
-                                target_entity_list = list(set().union(*gfm_not_id_temp_rel_ent_dict.values()))
+                                target_entity_list = list(set().union(*gnn_not_id_temp_rel_ent_dict.values()))
                                 
                             reasoning_path = topic_ents[0]
-                            question_dataset = make_gfm_second_input(sub_Q, reasoning_path, topic_ents, target_entity_list, text_encoder, kg_data, encode_path=False)
-                            answer_mask = None
-                            outputs, temp_target_ent_ranking, entity2prob = test(gfm_model, kg_data, question_dataset, temp_retrieved_rel_endpoint_hit, answer_mask, is_topp = is_topp, top_p = 0.9, hard_selection=hard_selection, threshod=0.5, do_entity_len_threshold=do_entity_len_threshold, return_entity_threshold=args.return_entity_threshold, device=GNN_device)
+                            question_dataset = make_gnn_second_input(sub_Q, reasoning_path, topic_ents, target_entity_list, text_encoder, kg_data, encode_path=False)
+                            outputs, entity2prob = test(gnn_model, kg_data, question_dataset, device=GNN_device)
                             
-                            filtered_dict = {key: [val for val in values if val in outputs] for key, values in gfm_not_id_temp_rel_ent_dict.items() if any(val in outputs for val in values)}
+                            filtered_dict = {key: [val for val in values if val in outputs] for key, values in gnn_not_id_temp_rel_ent_dict.items() if any(val in outputs for val in values)}
                             if check_cnt != 0:
-                                id_filtered_dict = {key: [val for val in values if val in outputs] for key, values in gfm_new_temp_rel_ent_dict.items() if any(val in outputs for val in values)}
+                                id_filtered_dict = {key: [val for val in values if val in outputs] for key, values in gnn_new_temp_rel_ent_dict.items() if any(val in outputs for val in values)}
                                 filtered_dict.update(id_filtered_dict)
 
                         
@@ -237,7 +236,7 @@ if __name__ == '__main__':
                                 mpnet_new_temp_rel_ent_dict = dict()
                                 retrieved_rel = temp_id_cand_rel
                               
-                                get_each_rel_end(cand_path, retrieved_rel, mpnet_new_temp_rel_ent_dict,  None, graph, writer, mpnet=True, gfm=False)
+                                get_each_rel_end(cand_path, retrieved_rel, mpnet_new_temp_rel_ent_dict,  None, graph, writer, mpnet=True, gnn=False)
                                 if len(mpnet_new_temp_rel_ent_dict) !=0:
                                     total_triples = find_suited_trip(cand_path, list(mpnet_new_temp_rel_ent_dict.keys()))
                                     graph_box.add_triples(total_triples)
@@ -388,8 +387,8 @@ if __name__ == '__main__':
             if filtered_keys[-1] in topic_graphs and not filtered_keys[-1].startswith('g.'):
                 reasoning_path = topic_box[0]
                 target_entity_list = list(path_map.keys())
-                question_dataset = make_gfm_second_input(total_original_q, reasoning_path, topic_box, target_entity_list, text_encoder, kg_data, encode_path=True)
-                final_outputs, final_temp_target_ent_ranking, final_entity2prob = test(gfm_model, kg_data, question_dataset, False, None, is_topp = is_topp, top_p = 0.9, hard_selection=hard_selection, threshod=0.5, do_entity_len_threshold=do_entity_len_threshold, return_entity_threshold=args.return_entity_threshold, device=GNN_device)
+                question_dataset = make_gnn_second_input(total_original_q, reasoning_path, topic_box, target_entity_list, text_encoder, kg_data, encode_path=True)
+                final_outputs, final_entity2prob = test(gnn_model, kg_data, question_dataset, device=GNN_device)
                     
             mpnet_input_paths = []
             for tail, paths in path_map.items():
@@ -400,7 +399,7 @@ if __name__ == '__main__':
             sorted_triplets = []
             sorted_triples, sorted_scores = predictor.predict(total_original_q, mpnet_input_paths, path_map=None, k=len(mpnet_input_paths), chunk_size=1024)
             mpent_topk_triples, final_mp_entity2prob = cal_entropy(sorted_scores, sorted_triples)
-            ## gfm ## 
+            ## gnn ## 
             final_total_score_dict = dict()
             for key, value in final_mp_entity2prob.items():
                 if key in final_entity2prob:   
