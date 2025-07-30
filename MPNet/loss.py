@@ -6,29 +6,14 @@ import torch.nn as nn
 
 class MPNCELoss(nn.Module):
     def __init__(self, eps=1e-12):
-        """
-        eps: 분모가 0이 되는 것을 방지하기 위한 아주 작은 값.
-        """
         super(MPNCELoss, self).__init__()
         self.eps = eps
 
     def forward(self, scores: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            scores: Tensor of shape [B, P+N] -- 이미 temperature scaling 및 masking이 적용된 score.
-            labels: Tensor of shape [B, P+N] -- 각 row에서 1은 positive 후보, 0은 negative 후보.
-                    (예: 각 쿼리마다 첫 P개가 positive)
-        Returns:
-            loss: scalar tensor, averaged over batch.
-        """
+    
         scores = scores.unsqueeze(0)
         labels = labels.unsqueeze(0)
         exp_scores = torch.exp(scores)
-        
-        # option2 ) positive avg
-        #pos_count = labels.sum(dim=1) 
-        #numerator = (exp_scores * labels).sum(dim=1) / (pos_count + self.eps)
-        # option 1) postive sum
         numerator = (exp_scores * labels).sum() # [B]
         denominator = torch.sum(exp_scores) # [B]
         loss = -torch.log((numerator / (denominator + self.eps)) + self.eps)
