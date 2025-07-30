@@ -306,7 +306,7 @@ class toybox:
         
     
 
-def get_each_rel_end(cand_path, retrieved_rel, mpnet_rel_ent_dict, gfm_rel_ent_dict, graph, writer, mpnet=False, gfm=False):
+def get_each_rel_end(cand_path, retrieved_rel, mpnet_rel_ent_dict, gnn_rel_ent_dict, graph, writer, mpnet=False, gnn=False):
     for relation in retrieved_rel:
         if relation in cand_path:
             paths = cand_path[relation]
@@ -314,14 +314,14 @@ def get_each_rel_end(cand_path, retrieved_rel, mpnet_rel_ent_dict, gfm_rel_ent_d
                 ents = [p[-1] for p in paths]
                 ents = set(ents) - set(writer.ent_box)
                 mpnet_rel_ent_dict[relation] = list(ents)
-            if gfm:
+            if gnn:
                 if len(graph)!=0:
                     ents = set()
                     for triple in paths:
                         if tuple(triple) in graph:
                             ents.add(triple[-1])
                     ents = ents - set(writer.ent_box)
-                    gfm_rel_ent_dict[relation] = list(ents)
+                    gnn_rel_ent_dict[relation] = list(ents)
     
 
 def checking_breakup(graph, q_entity, a_entity):
