@@ -48,13 +48,11 @@ class ProgressMeter(object):
         self.meters = meters
         self.prefix = prefix
         self.show_time = show_time
-        self.start_time = time.time()  # 시작 시각 저장
+        self.start_time = time.time() 
 
     def display(self, batch: int):
         entries = []
-        # 현재 진행 배치 정보
         entries.append(self.prefix + self.batch_fmtstr.format(batch))
-        # 각 meter 정보
         entries += [str(meter) for meter in self.meters]
         if self.show_time:
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -114,14 +112,8 @@ class Trainer:
         self._setup_training()
         self.criterion =  MPNCELoss().to(self.device)
         self.optimizer = AdamW([p for p in self.model.parameters() if p.requires_grad], lr=args.lr, weight_decay=args.weight_decay)
-        #dataset=load_data(self.args.train_path, self.args.train_subgraph_path, self.args.triple2id, self.args.max_num_neg, self.tokenizer)
-        #cwq, webqsp 한 번에 학습
-        #dataset, self.triple2id, self.id2triple, self.rel2id, self.id2subgraph = new_load_data(self.args.train_path, self.args.train_graph_path, self.args.triple2id_1, '/home/hyemin/shared_data/cwq/rel2id.pkl', self.args.max_num_neg, self.args.max_num_pos, self.tokenizer)
-        # self.encoded_relation = encoding_relations(list(self.rel2id.keys()), self.rel2id, self.model, self.tokenizer, self.device, batch_size=100)
-        # torch.save(self.encoded_relation, '/home/hyemin/shared_data/cwq/mpnet_relation_embeddings.pt')
-        #dataset,_,_  = allnew_load_data(self.args.train_path, self.args.train_graph_path, self.args.triple2id_1, self.args.rel2id_path, self.args.max_num_neg, self.args.max_num_pos, self.tokenizer)
         dataset,triple2id, id2triple  = new_load_data(self.args.train_path, self.args.train_graph_path, self.args.triple2id_1, self.args.max_num_neg, self.args.max_num_pos, self.tokenizer)
-        #dataset = dataset + dataset2k
+
        
         train_size = int(len(dataset)*0.8)
         valid_size = len(dataset)-train_size
@@ -133,7 +125,7 @@ class Trainer:
                 batch_size=args.batch_size,
                 shuffle=False,
                 collate_fn=collate,
-                num_workers=args.workers, #추가하기.
+                num_workers=args.workers,
                 pin_memory=True,
                 drop_last=True)
 
@@ -242,9 +234,7 @@ class Trainer:
                 self.model.train()
                 batch_dict = move_to_cuda(batch_dict, self.device)
                 scores, labels  = self.model(**batch_dict)
-                #scores = self.model(**batch_dict)
                 loss = self.criterion(scores, labels)
-                #loss = self.criterion(scores, batch_dict['labels'])
                 
                 losses.update(loss.item(), batch_size)
                 self.optimizer.zero_grad()
