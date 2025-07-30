@@ -128,14 +128,13 @@ class BertPredictor:
 
     @torch.no_grad()
     def predict_by_examples(self):
-        graph_path = "/home/hyemin/shared_data/webqsp/total_graph_webqsp.jsonl"
-        test_path = "/home/hyemin/shared_data/webqsp/golden_path/test_goldenpath_newtotal_0416.jsonl"
-        triple2id = "/home/hyemin/shared_data/webqsp/webqsp_triple2id.pkl"
-        # graph_path = "/home/hyemin/shared_data/cwq/total_graph_cwq.jsonl"
-        # test_path = "/home/hyemin/shared_data/cwq/golden_path/test_goldenpath_newtotal_0416.jsonl"
-        # triple2id = "/home/hyemin/shared_data/cwq/cwq_triple2id.pickle"
-        # #graph_path = "/home/hyemin/shared_data/cwq/test_max80000_subgraph.pkl"
-        #rel2id = "/home/hyemin/shared_data/cwq/rel2id.pkl"
+        graph_path = "/webqsp/total_graph_webqsp.jsonl"
+        test_path = "/data/webqsp/golden_path/test_goldenpath.jsonl"
+        triple2id = "/data/webqsp/webqsp_triple2id.pkl"
+        # graph_path = "/data/cwq/total_graph_cwq.jsonl"
+        # test_path = "/data/cwq/golden_path/test_goldenpath.jsonl"
+        # triple2id = "/data/cwq/cwq_triple2id.pickle"
+        #rel2id = "/data/cwq/rel2id.pkl"
         
         batch_size=1
         max_num_neg = 500
@@ -165,19 +164,6 @@ class BertPredictor:
             scores, labels = self.model(**batch_dict)
             hits,_ = hit_at_k(scores, labels, topk=(1, 3, 10, 20))
             hit1, hit3, hit10, hit20 = hits[0], hits[1], hits[2], hits[3]
-            
-
-            
-            # if hit10 == 0:
-            #     line = OrderedDict()
-            #     line['id'] = batch_dict['query_id']
-            #     #line['query_hop'] = batch_dict['query_hop']
-            #     sorted_ids = get_candidate_rank(scores, batch_dict['cand_triple_ids'])
-            #     line['pred_top20_results'] = [id2triple[idx] for idx in sorted_ids[:20]]
-            #     false_samples.append(line)
-            # target_id = triple2id[('m.0bfmhy4', 'government.government_position_held.office_holder', 'Return J. Meigs, Jr.')]
-            # rank, sorted_indices = get_candidate_rank(scores, batch_dict['cand_triple_ids'], target_id)
-            # breakpoint()
             Hit1.update(hit1, batch_size)
             Hit3.update(hit3, batch_size)
             Hit10.update(hit10, batch_size)
@@ -200,9 +186,9 @@ class BertPredictor:
 device = 'cuda:1'
 predictor = BertPredictor(device)
 #ckt_path = '/home/hyemin/model/my_model/BACKPACK/ENT_PRUNER/webqsp/model_best.mdl'
-#ckt_path = '/home/hyemin/shared_data/cwq/gfmpnet_inverse_entropy/model_best.mdl'
-#ckt_path = '/home/hyemin/shared_data/cwq/gfmpnet_entropy/model_last.mdl'
-ckt_path = '/home/hyemin/shared_data/roberta_model_best.mdl'
+#ckt_path = '/data/cwq/gfmpnet_inverse_entropy/model_best.mdl'
+#ckt_path = '/data/cwq/gfmpnet_entropy/model_last.mdl'
+ckt_path = '/data/roberta_model_best.mdl'
 #ckt_path = '/home/hyemin/model/my_model/BACKPACK/ENT_PRUNER/cwq/alibaba_subgraph/checkpoint_epoch1.mdl'
 #ckt_path = '/home/hyemin/model/my_model/BACKPACK/ENT_PRUNER/cwq/subgraph_add/checkpoint_epoch1.mdl'
 #ckt_path = '/home/hyemin/model/my_model/BACKPACK/ENT_PRUNER/cwq/totalgraph_add/checkpoint_epoch1.mdl'
