@@ -62,8 +62,7 @@ def hit_at_k(scores: torch.Tensor, labels: torch.Tensor, topk) -> float:
 
         for k in invalid_topk:
             hits[k] = 100.0
-
-        # 반환 형태 조정
+            
         if len(topk) == 1:
             return hits[topk[0]], topk_indices if valid_topk else None
         else:
