@@ -180,7 +180,7 @@ if not is_test:
         model = GNNRetriever(entity_model=QueryNBFNet(input_dim=512, hidden_dims=[512, 512, 512, 512, 512, 512]), rel_emb_dim=rel_emb)
     
     if load_model:
-        pretrained_dict = torch.load("/data/{dataset_name}/model_best.pth", map_location="cpu")
+        pretrained_dict = torch.load(f"/data/{dataset_name}/model_best.pth", map_location="cpu")
         new_model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict["model"].items() if k in new_model_dict}
         new_model_dict.update(pretrained_dict)
@@ -294,7 +294,7 @@ if not is_test:
                 "model": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
             }
-            torch.save(state, os.path.join("/data/{dataset_name}/model_best.pth"))
+            torch.save(state, os.path.join(f"/data/{dataset_name}/model_best.pth"))
             print('updating')
         scheduler.step()
         torch.cuda.empty_cache()
