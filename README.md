@@ -3,20 +3,7 @@
 
 ---
 # How to run
-## 1) Download Datasets and Checkpoints
-To run experiments, download the required Knowledge Graph datasets and checkpoints for:
-- Relation Retriever
-- Triple Retriever : GNN, MPNet
-  
-Alternatively, you can preprocess the datasets using the following commands:
-```
-python3 graph_preprocess.py
-python3 GNN/get_emb.py
-```
-
-📌 Note: Preprocessed datasets and checkpoints will be publicly available soon.
-
-## 2) Installation
+## 1) Installation
 ```
 # Create and activate a new environment
 conda create -n ProgRAG python=3.8 -y
@@ -32,6 +19,26 @@ conda install pyg -c pyg
 conda install ninja easydict pyyaml -c conda-forge
 pip install transformers sentence-transformers
 ```
+
+## 2) Download Datasets and Checkpoints
+To run experiments, download the required Knowledge Graph datasets and checkpoints for:
+- Relation Retriever
+- Triple Retriever : GNN, MPNet
+  
+Alternatively, you can preprocess the datasets using the following commands:
+```
+python3 graph_preprocess.py
+python3 GNN/get_emb.py
+```
+You can train the GNN and MPNet (Triple Retrievers) using the following commands:
+```
+python3 GNN/gnn_train.py
+python3 MPNet/[dataset].sh 
+```
+
+📌 Note: Preprocessed datasets and checkpoints will be publicly available soon.
+
+
 ## 3) Run
 ```
 python main.py --dataset [DATASET_NAME]
