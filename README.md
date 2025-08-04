@@ -8,6 +8,7 @@ To run experiments, download the required Knowledge Graph datasets and checkpoin
 - Relation Retriever
 - Triple Retriever : GNN, MPNet
 - link: https://drive.google.com/drive/folders/1BVvQRNTaLdONEeFauZfxPYQXQSpCVuNm?usp=sharing
+  
 📌 Note: Datasets and checkpoints will be publicly available soon.
 
 ## 2) Installation
