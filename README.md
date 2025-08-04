@@ -7,8 +7,14 @@
 To run experiments, download the required Knowledge Graph datasets and checkpoints for:
 - Relation Retriever
 - Triple Retriever : GNN, MPNet
+  
+Alternatively, you can preprocess the datasets using the following commands:
+```
+python3 graph_preprocess.py
+python3 GNN/get_emb.py
+```
 
-📌 Note: Datasets and checkpoints will be publicly available soon.
+📌 Note: Preprocessed datasets and checkpoints will be publicly available soon.
 
 ## 2) Installation
 ```
