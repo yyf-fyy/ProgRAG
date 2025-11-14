@@ -25,6 +25,9 @@ To run experiments, download the required Knowledge Graph datasets and checkpoin
 - Relation Retriever
 - Triple Retriever : GNN, MPNet
   
+You can download all necessary files from the following Google Drive link:
+https://drive.google.com/drive/folders/1BVvQRNTaLdONEeFauZfxPYQXQSpCVuNm?usp=drive_link
+
 Alternatively, you can preprocess the datasets using the following commands:
 ```
 python3 graph_preprocess.py
