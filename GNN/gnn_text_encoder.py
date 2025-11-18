@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-
+import os
 from transformers import AutoModel, AutoTokenizer
 
 class GTELargeEN:
@@ -9,6 +9,7 @@ class GTELargeEN:
                  normalize=True):
         self.device = device
         model_path = 'Alibaba-NLP/gte-large-en-v1.5'
+        os.environ["TOKENIZERS_PARALLELISM"] = "false"
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
         self.model = AutoModel.from_pretrained(
             model_path,
