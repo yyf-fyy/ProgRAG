@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from gnn_utils import *
+from .gnn_utils import *
 
 def test(model, kg_data, question_dataset, device='cuda:0'):
     entity2prob = {}
