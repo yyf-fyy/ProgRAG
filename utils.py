@@ -11,7 +11,19 @@ import torch
 import pickle
 import numpy as np
 from scipy.special import digamma
+import openai
+from openai.error import Timeout, RateLimitError, APIConnectionError, APIError
+import time
 
+def triple2prob(sorted_scores, sorted_triples):
+    eps = 1e-12
+    probs = F.softmax(sorted_scores, dim=0)
+    node_entropy = -(probs * (probs + eps).log()).sum(dim=0)
+    avg_entropy = node_entropy.detach().item()
+    scores_np = probs.detach().cpu().numpy()
+    mp_entity2prob = {trips[-1] : score.item() for trips, score in zip(sorted_triples, scores_np)}
+    return mp_entity2prob
+    
 def find_triples(graph, source, rel):
     temp = set()
     for t in graph:
@@ -587,18 +599,12 @@ def top_k_mean(values, k):
         return np.mean(top_k)
     
     
-import openai
-from openai.error import Timeout, RateLimitError, APIConnectionError, APIError
-import time
-
-openai.api_key = "your api key"
-
-def ask_gpt4(prompt):
+def ask_gpt4(prompt, args):
+    openai.api_key = args.api_key
     for attempt in range(3):
         try:
             response = openai.ChatCompletion.create(
-                model="gpt-4o-mini",
-                # model="gpt-3.5-turbo",
+                model= args.gpt_model,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": prompt}
@@ -645,5 +651,4 @@ def ask_gpt4(prompt):
                 return ""
             else:
                 time.sleep(10)
- 
 
