@@ -4,7 +4,7 @@ import pickle
 import torch
 from torch_geometric.data import Data
 import datasets
-from nbfvariadic import *
+from .nbfvariadic import *
 
 def get_emb(temp, dataset): 
     if dataset == 'webqsp':
