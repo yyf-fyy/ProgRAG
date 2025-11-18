@@ -9,19 +9,26 @@ Codes for the paper titled ["ProgRAG: Hallucination-Resistant Progressive Retrie
 # How to run
 ## 1) Installation
 ```
-# Create and activate a new environment
+# 1. Create and activate a new conda environment
 conda create -n ProgRAG python=3.8 -y
 conda activate ProgRAG
 
-# Install PyTorch with CUDA 11.8
+# 2. Install PyTorch with CUDA 11.8 support
 conda install pytorch==2.2.1 torchvision==0.17.1 torchaudio==2.2.1 pytorch-cuda=11.8 -c pytorch -c nvidia
 
-# Install PyG (PyTorch Geometric)
-conda install pyg -c pyg
+# 3. Install PyTorch Geometric and related packages
+pip install torch-scatter==latest+cu118 torch-sparse==latest+cu118 torch-cluster==latest+cu118 torch-spline-conv==latest+cu118 -f https://data.pyg.org/whl/torch-2.2.1+cu118.html
+pip install torch-geometric==2.3.0
 
-# Install other dependencies
+# 4. Install additional dependencies
 conda install ninja easydict pyyaml -c conda-forge
-pip install transformers sentence-transformers
+
+# 5. Install compatible Hugging Face packages
+# These versions are tested for Python 3.8
+pip install transformers==4.46.3 tokenizers==0.20.0 huggingface_hub==0.36.0 safetensors==0.5.3
+
+# 6. Install Sentence Transformers and Datasets
+pip install "sentence-transformers[train]==3.0.1" datasets==2.14.7
 ```
 
 ## 2) Download Datasets and Checkpoints
