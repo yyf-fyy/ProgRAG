@@ -268,7 +268,7 @@ Candidate relations : {candidate_rels}
 Type of answer : {typeof}
 Retrieve top 3 relations from question "{Q}" step by step:'''
 
-REVISED_ANSWER_TEMPLATE = '''
+ANSWER_TEMPLATE = '''
 You are an expert in world knowledge and logical reasoning. Your task is to determine the expected type of the answer based on the given question.
 Your response must be accurate, grounded in the context of the question, and reflect common sense reasoning.
 Return the answer type as a list (e.g., ["place"], ["profession"]).
