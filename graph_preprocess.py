@@ -1,7 +1,14 @@
 import json
+from pathlib import Path
 from datasets import load_dataset
 from tqdm import tqdm
 import pickle
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+DATA_ROOT = PROJECT_ROOT / 'data'
+GRAPHS_DIR = DATA_ROOT / 'graphs'
+DATA_ROOT.mkdir(parents=True, exist_ok=True)
+GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
 
 def make_total_graph(dataset):
     # dataset = 'cwq'
@@ -28,7 +35,7 @@ def make_total_graph(dataset):
     for t in temp_list:
         final_list.append(list(t))
 
-    with open(f'/data/{dataset}/total_graph_{dataset}.jsonl', 'w', encoding='utf-8') as file:
+    with open(GRAPHS_DIR / f'total_graph_{dataset}.jsonl', 'w', encoding='utf-8') as file:
         json.dump(final_list, file)
 
 
@@ -40,46 +47,47 @@ def make_topic2graph(dataset):
 
     topic2graph = dict()
 
-    for item in tqdm(train_dataset):
-        q_list = item['q_entity']
-        subgraph = item['graph']
-        temp_graph = set()
-        for triple in subgraph:
-            temp_graph.add(tuple(triple))
+    split_datasets = [
+        ('train', train_dataset),
+        ('validation', valid_dataset),
+        ('test', test_dataset),
+    ]
 
-        for entity in q_list:
-            if entity not in topic2graph:
-                topic2graph[entity] = set()
-            topic2graph[entity] |= temp_graph
+    for split_name, split_dataset in split_datasets:
+        for item in tqdm(split_dataset, desc=f'构建topic图 ({split_name})'):
+            q_list = item['q_entity']
+            subgraph = item['graph']
+            temp_graph = set()
+            for triple in subgraph:
+                temp_graph.add(tuple(triple))
 
-    for item in tqdm(valid_dataset):
-        q_list = item['q_entity']
-        subgraph = item['graph']
-        temp_graph = set()
-        for triple in subgraph:
-            temp_graph.add(tuple(triple))
-
-        for entity in q_list:
-            if entity not in topic2graph:
-                topic2graph[entity] = set()
-            topic2graph[entity] |= temp_graph
-
-    for item in tqdm(test_dataset):
-        q_list = item['q_entity']
-        subgraph = item['graph']
-        temp_graph = set()
-        for triple in subgraph:
-            temp_graph.add(tuple(triple))
-
-        for entity in q_list:
-            if entity not in topic2graph:
-                topic2graph[entity] = set()
-            topic2graph[entity] |= temp_graph
+            for entity in q_list:
+                if entity not in topic2graph:
+                    topic2graph[entity] = set()
+                topic2graph[entity] |= temp_graph
 
     topic2graph = {k : list(v) for k, v in topic2graph.items()}
 
-    with open(f'/data/{dataset}/{dataset}_triple2id.json', 'rb') as f:
-        triple2id = pickle.load(f)
+    triple2id_candidates = [
+        GRAPHS_DIR / f'{dataset}_triple2id.pkl',
+        GRAPHS_DIR / f'{dataset}_triple2id.pickle',
+        DATA_ROOT / dataset / f'{dataset}_triple2id.json',
+    ]
+    triple2id = None
+    for path in triple2id_candidates:
+        if path.exists():
+            if path.suffix == '.json':
+                with open(path, 'r', encoding='utf-8') as f:
+                    triple2id = json.load(f)
+            else:
+                with open(path, 'rb') as f:
+                    triple2id = pickle.load(f)
+            break
+    if triple2id is None:
+        raise FileNotFoundError(
+            f"Could not find triple2id file for dataset '{dataset}'. "
+            f"Expected one of: {[str(p) for p in triple2id_candidates]}"
+        )
 
     cwq_graph = dict()
     for k, v in topic2graph.items():
@@ -87,7 +95,7 @@ def make_topic2graph(dataset):
             cwq_graph[k] = list()
         cwq_graph[k] += [triple2id[triplet] for triplet in v]
         
-    with open(f'/data/{dataset}/{dataset}_topic_graph.pickle', mode='wb') as f:
+    with open(GRAPHS_DIR / f'{dataset}_topic_graph.pickle', mode='wb') as f:
         pickle.dump(cwq_graph, f)
 
 dataset = 'cwq'

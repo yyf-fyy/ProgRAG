@@ -169,6 +169,7 @@ if __name__ == '__main__':
                     retrieved_rel = ["None"]
                 writer.add_ent(topic_ent)
                 all_subqs.append(sub_Q)
+                check_backtrack_cnt = 0
                     
                 for iter in range(args.local_iter):
                     # Triple Retrieval
@@ -344,7 +345,12 @@ if __name__ == '__main__':
                             except:
                                 retrieved_rel = ["None"]
                             if retrieved_rel != ["None"]:
-                                retrieved_rel = [item.strip() for item in retrieved_rel.split(',')]
+                                # Handle both string and list returns from llm_call
+                                if isinstance(retrieved_rel, str):
+                                    retrieved_rel = [item.strip() for item in retrieved_rel.split(',')]
+                                elif isinstance(retrieved_rel, list):
+                                    # Already a list, just ensure it's clean
+                                    retrieved_rel = [item.strip() if isinstance(item, str) else item for item in retrieved_rel]
                                 checking = 'reset'
 
                         elif len(cand_rel) > 0:

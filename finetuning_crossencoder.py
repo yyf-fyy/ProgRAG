@@ -12,6 +12,7 @@ from datasets import Dataset
 import os
 import random
 from torch import Tensor, nn
+from pathlib import Path
 from sentence_transformers.util import fullname
 
 
@@ -198,11 +199,17 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 device = 'cuda'
 DATA = 'webqsp'
 
-model_save_path = "/REL_RETRIEVER"
-gold_path = "/data/webqsp/train_goldenpath.jsonl"
-graph_path = "/data/webqsp/total_graph_webqsp.jsonl"
-gold_path2 = "/data/cwq/train_goldenpath.jsonl"
-graph_path2 = "/data/cwq/total_graph_cwq.jsonl"
+PROJECT_ROOT = Path(__file__).resolve().parent
+DATA_ROOT = PROJECT_ROOT / 'data'
+GRAPH_DIR = DATA_ROOT / 'graphs'
+REL_RETRIEVER_DIR = PROJECT_ROOT / 'ckpt' / 'Rel_Retriever'
+REL_RETRIEVER_DIR.mkdir(parents=True, exist_ok=True)
+
+model_save_path = REL_RETRIEVER_DIR.as_posix()
+gold_path = (DATA_ROOT / 'webqsp' / 'train_goldenpath.jsonl').as_posix()
+graph_path = (GRAPH_DIR / 'total_graph_webqsp.jsonl').as_posix()
+gold_path2 = (DATA_ROOT / 'cwq' / 'train_goldenpath.jsonl').as_posix()
+graph_path2 = (GRAPH_DIR / 'total_graph_cwq.jsonl').as_posix()
 
 train_examples, valid_examples= new_load_data(gold_path, graph_path, gold_path2, graph_path2)
 train_dataset = Dataset.from_dict(train_examples)
@@ -264,8 +271,8 @@ trainer = CrossEncoderTrainer(
 trainer.train()
 
 # Save the model
-final_output_dir = f"{model_save_path}/final"
-model.save_pretrained(final_output_dir)
+final_output_dir = Path(model_save_path) / "final"
+model.save_pretrained(final_output_dir.as_posix())
 
 # Optionally, push the model to Hugging Face Hub
 # try:

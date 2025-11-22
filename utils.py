@@ -1,4 +1,6 @@
 import re
+import os
+from pathlib import Path
 import torch.nn.functional as F
 from sentence_transformers.cross_encoder import CrossEncoder
 from collections import defaultdict, OrderedDict
@@ -12,8 +14,31 @@ import pickle
 import numpy as np
 from scipy.special import digamma
 import openai
-from openai.error import Timeout, RateLimitError, APIConnectionError, APIError
 import time
+
+# 兼容新旧版本的 openai 库
+try:
+    # 新版 openai (1.0+)
+    from openai import APITimeoutError, RateLimitError, APIConnectionError, APIError
+    # 重命名以保持向后兼容
+    Timeout = APITimeoutError
+    OPENAI_NEW_VERSION = True
+except ImportError:
+    # 旧版 openai (< 1.0)
+    try:
+        from openai.error import Timeout, RateLimitError, APIConnectionError, APIError
+        OPENAI_NEW_VERSION = False
+    except ImportError:
+        # 如果都导入失败，定义占位符以避免崩溃
+        Timeout = Exception
+        RateLimitError = Exception
+        APIConnectionError = Exception
+        APIError = Exception
+        OPENAI_NEW_VERSION = False
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+GRAPHS_DIR = PROJECT_ROOT / 'data' / 'graphs'
+GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
 
 def triple2prob(sorted_scores, sorted_triples):
     eps = 1e-12
@@ -238,18 +263,18 @@ def get_relation_graph(triples):
 def get_dataset(dataset_name, split):
     dataset = load_dataset(f"rmanluo/RoG-{dataset_name}", split=split)
     graph = []
-    file_path = f'/data/graphs/total_graph_{dataset_name}.jsonl'
+    file_path = GRAPHS_DIR / f'total_graph_{dataset_name}.jsonl'
     with open(file_path, 'r') as file:
         for line in file:
             data = json.loads(line)
             graph.append(data)
     max_iter = 3 if dataset_name == 'cwq' else 1
     if dataset_name == 'webqsp':
-        with open(f'/data/graphs/{dataset_name}_triple2id.pkl', 'rb') as f:
-            triple2id = pickle.load(f)
+        triple2id_path = GRAPHS_DIR / f'{dataset_name}_triple2id.pkl'
     else:
-        with open(f'/data/graphs/{dataset_name}_triple2id.pickle', 'rb') as f:
-            triple2id = pickle.load(f)
+        triple2id_path = GRAPHS_DIR / f'{dataset_name}_triple2id.pickle'
+    with open(triple2id_path, 'rb') as f:
+        triple2id = pickle.load(f)
 
     id2triple = {v : k for k, v in triple2id.items()}
     return dataset, graph[0],  max_iter, id2triple, triple2id
@@ -284,6 +309,10 @@ def write_log(outpath, dataset, inds, original_q, cand_ent_list, relation_list, 
     line['pred_relation'] = relation_list
     line['sub_questions'] = sub_questions
     print(line)
+    # Create directory if it doesn't exist
+    output_dir = os.path.dirname(outpath)
+    if output_dir:  # Only create directory if path has a directory component
+        os.makedirs(output_dir, exist_ok=True)
     with open(outpath, "a") as outfile:
         json_str = json.dumps(line)
         outfile.write(json_str + "\n")
@@ -600,23 +629,40 @@ def top_k_mean(values, k):
     
     
 def ask_gpt4(prompt, args):
-    openai.api_key = args.api_key
     for attempt in range(3):
         try:
-            response = openai.ChatCompletion.create(
-                model= args.gpt_model,
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.7,
-                max_tokens=1024,
-                top_p=0.9,
-                request_timeout=1200,
-                timeout=1200
-            )
-            return response.choices[0].message["content"]
-        except Timeout as e:
+            if OPENAI_NEW_VERSION:
+                # 新版 openai API (1.0+)
+                client = openai.OpenAI(api_key=args.api_key)
+                response = client.chat.completions.create(
+                    model=args.gpt_model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=1024,
+                    top_p=0.9,
+                    timeout=1200
+                )
+                return response.choices[0].message.content
+            else:
+                # 旧版 openai API (< 1.0)
+                openai.api_key = args.api_key
+                response = openai.ChatCompletion.create(
+                    model=args.gpt_model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=1024,
+                    top_p=0.9,
+                    request_timeout=1200,
+                    timeout=1200
+                )
+                return response.choices[0].message["content"]
+        except (Timeout, APITimeoutError) as e:
             print(f"[OpenAI Timeout] Retry {attempt+1}/3: {e}")
             if attempt == 2:
                 print("OpenAI request timed out 3 times. Returning empty string.")

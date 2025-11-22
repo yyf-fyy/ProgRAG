@@ -15,6 +15,7 @@ import datasets
 import json
 from datasets import load_dataset
 import gc
+from pathlib import Path
 
 def test(model, test_datasets, device, return_metrics):
     print_topk = False
@@ -123,16 +124,35 @@ is_test = False
 load_model = False
 device = get_device()
 dataset_name = 'webqsp'
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_ROOT = PROJECT_ROOT / 'data'
+GRAPHS_DIR = DATA_ROOT / 'graphs'
+DATASET_DIR = DATA_ROOT / dataset_name
+CKPT_DIR = PROJECT_ROOT / 'ckpt' / 'GNN' / dataset_name
+DATASET_DIR.mkdir(parents=True, exist_ok=True)
+CKPT_DIR.mkdir(parents=True, exist_ok=True)
 return_metrics = ['mrr', 'hits@1', 'hits@2', 'hits@3', 'hits@5', 'hits@10', 'hits@20', 'hits@50', 'hits@100']
 text_encoder = GTELargeEN(device)
 
 import pickle
-with open(f'/data/{dataset_name}/{dataset_name}_triple2id.pickle', 'rb') as f:
+triple2id_candidates = [
+    GRAPHS_DIR / f'{dataset_name}_triple2id.pkl',
+    GRAPHS_DIR / f'{dataset_name}_triple2id.pickle',
+    DATASET_DIR / f'{dataset_name}_triple2id.pickle',
+]
+triple2id_path = next((p for p in triple2id_candidates if p.exists()), None)
+if triple2id_path is None:
+    raise FileNotFoundError(
+        f"Could not find triple2id file for dataset '{dataset_name}'. "
+        f"Tried: {[str(p) for p in triple2id_candidates]}"
+    )
+with open(triple2id_path, 'rb') as f:
     triple2id = pickle.load(f)
 id2triple = {v : k for k, v in triple2id.items()}
 
 if not is_test:
-    with open(f'/data/{dataset_name}/small_subgraph.pkl', 'rb') as f:
+    small_subgraph_path = DATASET_DIR / 'small_subgraph.pkl'
+    with open(small_subgraph_path, 'rb') as f:
         output= pickle.load(f)
 
     train_data = load_dataset(f"rmanluo/RoG-{dataset_name}", split='train')
@@ -180,7 +200,8 @@ if not is_test:
         model = GNNRetriever(entity_model=QueryNBFNet(input_dim=512, hidden_dims=[512, 512, 512, 512, 512, 512]), rel_emb_dim=rel_emb)
     
     if load_model:
-        pretrained_dict = torch.load(f"/data/{dataset_name}/model_best.pth", map_location="cpu")
+        best_model_path = CKPT_DIR / "model_best.pth"
+        pretrained_dict = torch.load(best_model_path, map_location="cpu")
         new_model_dict = model.state_dict()
         pretrained_dict = {k: v for k, v in pretrained_dict["model"].items() if k in new_model_dict}
         new_model_dict.update(pretrained_dict)
@@ -278,7 +299,7 @@ if not is_test:
                 "model": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
             }
-        torch.save(state, os.path.join(f"/data/{dataset_name}/mode_state_{i}.pth"))
+        torch.save(state, CKPT_DIR / f"mode_state_{i}.pth")
         synchronize()
         torch.cuda.empty_cache()
         all_avg_mrr, all_avg_hit1, all_avg_hit2, all_avg_hit3,\
@@ -294,7 +315,7 @@ if not is_test:
                 "model": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
             }
-            torch.save(state, os.path.join(f"/data/{dataset_name}/model_best.pth"))
+            torch.save(state, CKPT_DIR / "model_best.pth")
             print('updating')
         scheduler.step()
         torch.cuda.empty_cache()
